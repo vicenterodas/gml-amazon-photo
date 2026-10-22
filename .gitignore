@@ -1,0 +1,28 @@
+# Entornos, cachés y compilación Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Datos descargados y máscaras regenerables
+/data/
+
+# Temporales y configuración local
+.DS_Store
+.env
+.env.*
+!.env.example
+.ipynb_checkpoints/
+.idea/
+.vscode/
+*.log
+*.tmp
+*~

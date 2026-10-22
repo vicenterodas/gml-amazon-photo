@@ -1,0 +1,91 @@
+{
+  "dataset": "torch_geometric.datasets.Amazon(name='Photo')",
+  "seed": 42,
+  "environment": {
+    "python": "3.14.7",
+    "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+    "packages": {
+      "torch": "2.14.1",
+      "torch-geometric": "2.8.1",
+      "numpy": "2.5.4",
+      "pandas": "3.0.6",
+      "scikit-learn": "1.9.1",
+      "matplotlib": "3.11.2",
+      "scipy": "1.18.1"
+    }
+  },
+  "provenance": {
+    "raw_url": "https://github.com/shchur/gnn-benchmark/raw/master/data/npz/amazon_electronics_photo.npz",
+    "raw_sha256": "bdb1feb8e6ff42ee44024b04479145029c563fd42fc31bff80af20887ba0439a",
+    "processed_sha256": "3dc53ddfdde6c1226bf230a4948a770d03652dc7361a24a87905e607bcb66e8a",
+    "tensors_sha256": "22092fea3318175a055e7e3a3c25bdc632dbf184613d31d1931e545a01388621",
+    "masks_content_sha256": "03c9075dcc522e1c6e4aeda63d98ef7054f74ebe4f76484f1b949d521343ac49"
+  },
+  "shapes": {
+    "x": [
+      7650,
+      745
+    ],
+    "edge_index": [
+      2,
+      238162
+    ],
+    "y": [
+      7650
+    ]
+  },
+  "checks": {
+    "pyg_data_validate": true,
+    "x_shape": true,
+    "edge_index_shape": true,
+    "y_shape": true,
+    "x_float": true,
+    "x_finite": true,
+    "y_integer": true,
+    "edge_index_integer": true,
+    "edge_indices_in_range": true,
+    "eight_classes": true,
+    "all_classes_present": true,
+    "undirected": true,
+    "no_self_loops": true,
+    "no_duplicate_directed_entries": true,
+    "cache_matches_raw_official_loader": true,
+    "split_reproducible": true,
+    "masks_saved_correctly": true,
+    "original_tensors_unchanged": true,
+    "raw_file_unchanged": true,
+    "processed_file_unchanged": true
+  },
+  "statistics": {
+    "num_nodes": 7650,
+    "num_stored_edges": 238162,
+    "num_undirected_edges": 119081,
+    "num_features": 745,
+    "num_classes": 8,
+    "density": 0.004070112116838717,
+    "num_components": 136,
+    "largest_component_nodes": 7487,
+    "isolated_nodes": 115,
+    "same_class_undirected_edges": 98509,
+    "edge_homophily": 0.8272436408830964,
+    "degree": {
+      "min": 0,
+      "max": 1434,
+      "mean": 31.132287581699348,
+      "median": 22.0,
+      "std": 47.274501030768654,
+      "p95": 87.0
+    },
+    "features": {
+      "dtype": "torch.float32",
+      "min": 0.0,
+      "max": 1.0,
+      "zero_fraction": 0.6526018335745931
+    },
+    "split_sizes": {
+      "train_mask": 4590,
+      "val_mask": 1530,
+      "test_mask": 1530
+    }
+  }
+}
