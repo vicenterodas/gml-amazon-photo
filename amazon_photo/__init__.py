@@ -1,1 +1,1 @@
-"""Preparación de Amazon Photo; no contiene modelos ni entrenamiento."""
+"""Preparación de Amazon Photo y clasificadores MLP/GCN, sin entrenamiento."""
