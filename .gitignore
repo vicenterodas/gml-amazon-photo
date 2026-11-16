@@ -12,8 +12,10 @@ build/
 dist/
 *.egg-info/
 
-# Datos descargados y máscaras regenerables
+# Datos descargados, máscaras y checkpoints regenerables
 /data/
+/artifacts/
+/presentation/
 
 # Temporales y configuración local
 .DS_Store

@@ -1,0 +1,13 @@
+{
+  "checkpoints_reloaded": 40,
+  "metric_conditions_recomputed": 75,
+  "graphs_verified": 35,
+  "summary_rows_verified": 15,
+  "seed42_independent_replay_exact": true,
+  "best_checkpoints_verified": true,
+  "nested_symmetric_graphs_verified": true,
+  "original_dataset_and_masks_match_stage1": true,
+  "original_files_unchanged": true,
+  "unit_tests_passed": 18,
+  "pip_check_passed": true
+}

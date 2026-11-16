@@ -1,0 +1,80 @@
+{
+  "training_config": {
+    "epochs": 300,
+    "patience": 50,
+    "learning_rate": 0.01,
+    "weight_decay": 0.0005
+  },
+  "hidden_channels": 64,
+  "dropout": 0.5,
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "split_seed": 42,
+  "drop_fractions": [
+    0.0,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    0.9,
+    1
+  ],
+  "edge_seed_rule": "training_seed + 10000",
+  "selection": "minimum validation cross-entropy; first checkpoint wins ties",
+  "protocols": {
+    "attributes": "MLP entrenada una vez por semilla; ignora el grafo",
+    "inference": "GCN entrenada con grafo completo; pesos fijos ante eliminación",
+    "retrain": "GCN reinicializada y entrenada en cada grafo incompleto"
+  },
+  "edge_removal": "uniform undirected pairs without replacement; nested subsets; floor(fraction * m)",
+  "features": "PyG original, sin transformaciones adicionales",
+  "device": "cpu",
+  "threads": 1,
+  "deterministic_algorithms": true,
+  "tensors_sha256": "22092fea3318175a055e7e3a3c25bdc632dbf184613d31d1931e545a01388621",
+  "masks_content_sha256": "03c9075dcc522e1c6e4aeda63d98ef7054f74ebe4f76484f1b949d521343ac49",
+  "protected_files_sha256": {
+    "data/Photo/raw/amazon_electronics_photo.npz": "bdb1feb8e6ff42ee44024b04479145029c563fd42fc31bff80af20887ba0439a",
+    "data/Photo/processed/data.pt": "3dc53ddfdde6c1226bf230a4948a770d03652dc7361a24a87905e607bcb66e8a",
+    "data/splits/photo_seed42.npz": "3b9dacd0b378e6fb8de97fbeccab03f641f51d994b914a6cd2e4f2def3805e72"
+  },
+  "checks": {
+    "original_tensors_unchanged": true,
+    "original_files_unchanged": true,
+    "masks_match_split_seed": true,
+    "equal_parameter_counts": true
+  },
+  "parameter_counts": {
+    "mlp": 48264,
+    "gcn": 48264
+  },
+  "class_names": [
+    "Film Photography",
+    "Digital Cameras",
+    "Binoculars & Scopes",
+    "Lenses",
+    "Tripods & Monopods",
+    "Video Surveillance",
+    "Lighting & Studio",
+    "Flashes"
+  ],
+  "environment": {
+    "python": "3.14.7",
+    "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+    "packages": {
+      "torch": "2.14.1",
+      "torch-geometric": "2.8.1",
+      "numpy": "2.5.4",
+      "pandas": "3.0.6",
+      "scikit-learn": "1.9.1",
+      "matplotlib": "3.11.2",
+      "scipy": "1.18.1"
+    }
+  },
+  "elapsed_seconds": 459.9058150409255
+}

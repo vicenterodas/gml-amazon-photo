@@ -1,1 +1,1 @@
-"""Preparación de Amazon Photo y clasificadores MLP/GCN, sin entrenamiento."""
+"""Amazon Photo: preparación, clasificadores MLP/GCN y evaluación de robustez."""
