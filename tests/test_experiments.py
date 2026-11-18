@@ -1,13 +1,17 @@
 """Controles de fuga de etiquetas, selección y eliminación de conexiones."""
 
+from pathlib import Path
+import tempfile
 import unittest
 
 import numpy as np
+import pandas as pd
 import torch
 from torch.nn import functional as F
 from torch_geometric.utils import is_undirected
 
-from amazon_photo.models import GCN, MLP
+from amazon_photo.experiment_plots import save_experiment_figures
+from amazon_photo.models import GAT, GCN, MLP
 from amazon_photo.perturbation import edge_subsets, graph_statistics
 from amazon_photo.training import TrainingConfig, classification_metrics, fit, seed_everything, train_epoch
 
@@ -112,6 +116,46 @@ class TrainingTests(unittest.TestCase):
         mlp.eval()
         gcn.eval()
         self.assertTrue(torch.allclose(mlp(self.x), gcn(self.x, torch.empty((2, 0), dtype=torch.long))))
+
+    def test_gat_trains_with_deterministic_algorithms(self):
+        seed_everything(7)
+        model = GAT(2, 4, 2, dropout=0.5, heads=2)
+        history, metadata = fit(model, self.x, self.edges, self.train_mask, self.y[self.train_mask],
+                                self.val_mask, self.y[self.val_mask],
+                                TrainingConfig(epochs=3, patience=3, learning_rate=.05))
+        self.assertEqual(len(history), 3)
+        self.assertTrue(np.isfinite(metadata["best_val_loss"]))
+        self.assertFalse(model.training)
+
+    def test_figures_render_mlp_gcn_and_gat(self):
+        rows = []
+        for model, protocol in (("mlp", "attributes"), ("gcn", "retrain"), ("gcn", "inference"),
+                                ("gat", "retrain"), ("gat", "inference")):
+            for drop in ((0.,) if model == "mlp" else (0., 1.)):
+                rows.append({"model": model, "protocol": protocol, "seed": 1, "drop_fraction": drop,
+                             "best_epoch": 2, "test_accuracy": .5, "test_macro_f1": .4,
+                             "train_accuracy": .6, "train_macro_f1": .5, "val_accuracy": .55,
+                             "val_macro_f1": .45, "train_loss": .7, "val_loss": .8, "test_loss": .9})
+        metrics = pd.DataFrame(rows)
+        scores = [f"{split}_{metric}" for split in ("train", "val", "test")
+                  for metric in ("loss", "accuracy", "macro_f1")]
+        grouped = metrics.groupby(["model", "protocol", "drop_fraction"])[scores].agg(["mean", "std", "count"])
+        grouped.columns = [f"{metric}_{stat}" for metric, stat in grouped.columns]
+        summary = grouped.reset_index()
+        graphs = pd.DataFrame({"drop_fraction": [0., 1.], "isolated_nodes": [1, 4], "components": [2, 4]})
+        confusion = pd.DataFrame([{"model": model, "true_class": i, "predicted_class": j, "count": 1}
+                                  for model in ("mlp", "gcn", "gat") for i in range(2) for j in range(2)])
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            (output / "histories").mkdir()
+            for model in ("mlp", "gcn", "gat"):
+                pd.DataFrame({"epoch": [1, 2], "train_loss": [.8, .6], "val_loss": [.9, .7],
+                              "train_accuracy": [.4, .6], "val_accuracy": [.3, .5]}).to_csv(
+                    output / "histories" / f"{model}_seed1_drop0.csv", index=False)
+            save_experiment_figures(metrics, summary, graphs, confusion, ["A", "B"], 1, output)
+            for name in ("baseline_comparison.png", "learning_curves.png", "edge_robustness.png",
+                         "graph_fragmentation.png", "confusion_matrices.png"):
+                self.assertTrue((output / "figures" / name).is_file())
 
     def test_macro_f1_includes_unpredicted_classes(self):
         scores = classification_metrics(torch.tensor([[3., 0.], [3., 0.]]), torch.tensor([0, 1]), 2)

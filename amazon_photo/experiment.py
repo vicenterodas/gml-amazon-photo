@@ -1,4 +1,4 @@
-"""Comparación MLP/GCN y robustez: python -m amazon_photo.experiment."""
+"""Comparación MLP/GCN/GAT y robustez: python -m amazon_photo.experiment."""
 
 import argparse
 from dataclasses import asdict
@@ -38,7 +38,10 @@ def parse_args():
     parser.add_argument("--split-seed", type=int, default=42)
     parser.add_argument("--seeds", type=int, nargs="+", default=[42, 43, 44, 45, 46])
     parser.add_argument("--drop-fractions", type=float, nargs="+", default=[0, .1, .25, .5, .75, .9, 1])
+    parser.add_argument("--models", nargs="+", default=["mlp", "gcn", "gat"],
+                        choices=("mlp", "gcn", "gat"))
     parser.add_argument("--hidden-channels", type=int, default=64)
+    parser.add_argument("--heads", type=int, default=8)
     parser.add_argument("--dropout", type=float, default=.5)
     parser.add_argument("--epochs", type=int, default=300)
     parser.add_argument("--patience", type=int, default=50)
@@ -53,6 +56,11 @@ def parse_args():
         parser.error("Las semillas deben ser únicas, no negativas y menores que 2**32 - 10000")
     if args.hidden_channels < 1 or not 0 <= args.dropout < 1 or args.threads < 1:
         parser.error("hidden-channels y threads deben ser positivos; dropout debe estar en [0, 1)")
+    if len(set(args.models)) != len(args.models):
+        parser.error("Los modelos no deben repetirse")
+    args.models = [kind for kind in ("mlp", "gcn", "gat") if kind in args.models]
+    if "gat" in args.models and (args.heads < 1 or args.hidden_channels % args.heads != 0):
+        parser.error("Con GAT, heads debe ser positivo y dividir a hidden-channels")
     return args
 
 
@@ -96,7 +104,7 @@ def main():
         def train(kind, fraction):
             seed_everything(seed)
             model = build_classifier(kind, data.num_features, args.hidden_channels,
-                                     dataset.num_classes, args.dropout)
+                                     dataset.num_classes, args.dropout, args.heads)
             parameter_counts[kind] = sum(p.numel() for p in model.parameters())
             fit_start = time.perf_counter()
             history, metadata = fit(model, data.x, graphs[fraction], masks["train_mask"],
@@ -109,6 +117,7 @@ def main():
             torch.save({"model_state_dict": model.state_dict(), "model": kind,
                         "in_channels": data.num_features, "hidden_channels": args.hidden_channels,
                         "out_channels": dataset.num_classes, "dropout": args.dropout,
+                        "heads": args.heads if kind == "gat" else None,
                         "training_config": asdict(config), "seed": seed, "edge_seed": edge_seed,
                         "drop_fraction": fraction, "split_seed": args.split_seed,
                         "tensors_sha256": original, "masks_content_sha256": masks_hash,
@@ -117,19 +126,23 @@ def main():
                   f"val_loss={metadata['best_val_loss']:.4f}, {metadata['fit_seconds']:.1f}s", flush=True)
             return model, metadata
 
-        mlp, mlp_metadata = train("mlp", 0.)
-        full_gcn, full_metadata = train("gcn", 0.)
-        sparse_models = {0.: (full_gcn, full_metadata)}
-        for fraction in args.drop_fractions:
-            if fraction > 0:
-                sparse_models[fraction] = train("gcn", fraction)
-
         # Todas las decisiones de entrenamiento de esta semilla ya están cerradas.
         # El test se consulta ahora, exclusivamente para las métricas finales.
-        conditions = [("mlp", "attributes", 0., mlp, mlp_metadata)]
-        for fraction, (model, metadata) in sparse_models.items():
-            conditions.append(("gcn", "retrain", fraction, model, metadata))
-            conditions.append(("gcn", "inference", fraction, full_gcn, full_metadata))
+        conditions = []
+        if "mlp" in args.models:
+            mlp, mlp_metadata = train("mlp", 0.)
+            conditions.append(("mlp", "attributes", 0., mlp, mlp_metadata))
+        for kind in ("gcn", "gat"):
+            if kind not in args.models:
+                continue
+            full_model, full_metadata = train(kind, 0.)
+            trained = {0.: (full_model, full_metadata)}
+            for fraction in args.drop_fractions:
+                if fraction > 0:
+                    trained[fraction] = train(kind, fraction)
+            for fraction, (model, metadata) in trained.items():
+                conditions.append((kind, "retrain", fraction, model, metadata))
+                conditions.append((kind, "inference", fraction, full_model, full_metadata))
         for kind, protocol, fraction, model, metadata in conditions:
             with torch.no_grad():
                 logits = model(data.x, graphs[fraction])
@@ -161,27 +174,48 @@ def main():
     grouped.columns = [f"{metric}_{stat}" for metric, stat in grouped.columns]
     summary = grouped.reset_index()
     summary.to_csv(args.results_dir / "summary.csv", index=False)
-    mlp_scores = metrics[metrics.model == "mlp"][["seed", "test_accuracy", "test_macro_f1"]]
-    paired = metrics[metrics.model == "gcn"].merge(mlp_scores, on="seed", suffixes=("_gcn", "_mlp"))
-    for metric in ("accuracy", "macro_f1"):
-        paired[f"delta_{metric}_pp"] = 100 * (paired[f"test_{metric}_gcn"] - paired[f"test_{metric}_mlp"])
-    paired[["seed", "protocol", "drop_fraction", "delta_accuracy_pp", "delta_macro_f1_pp"]].to_csv(
-        args.results_dir / "paired_differences.csv", index=False)
+    paired_columns = ["model", "seed", "protocol", "drop_fraction",
+                      "delta_accuracy_pp", "delta_macro_f1_pp"]
+    paired_rows = []
+    if (metrics.model == "mlp").any():
+        mlp_scores = metrics[metrics.model == "mlp"][["seed", "test_accuracy", "test_macro_f1"]]
+        for kind in ("gcn", "gat"):
+            subset = metrics[metrics.model == kind]
+            if subset.empty:
+                continue
+            paired = subset.merge(mlp_scores, on="seed", suffixes=(f"_{kind}", "_mlp"))
+            for metric in ("accuracy", "macro_f1"):
+                paired[f"delta_{metric}_pp"] = 100 * (
+                    paired[f"test_{metric}_{kind}"] - paired["test_" + metric + "_mlp"])
+            paired_rows.append(paired[paired_columns])
+    paired_frame = pd.concat(paired_rows, ignore_index=True) if paired_rows else pd.DataFrame(columns=paired_columns)
+    paired_frame.to_csv(args.results_dir / "paired_differences.csv", index=False)
     confusion = pd.DataFrame(confusion_rows)
     confusion.to_csv(args.results_dir / "confusion_matrices.csv", index=False)
     checks = {"original_tensors_unchanged": tensor_fingerprint(data) == original,
               "original_files_unchanged": all(sha256_file(path) == hashes_before[str(path)] for path in protected_files),
               "masks_match_split_seed": True,
-              "equal_parameter_counts": parameter_counts["mlp"] == parameter_counts["gcn"]}
+              "equal_parameter_counts": (
+                  parameter_counts["mlp"] == parameter_counts["gcn"]
+                  if {"mlp", "gcn"} <= parameter_counts.keys() else True),
+              "gat_attention_parameters": (
+                  parameter_counts["gat"] - parameter_counts["gcn"]
+                  == 2 * args.hidden_channels + 2 * dataset.num_classes
+                  if {"gat", "gcn"} <= parameter_counts.keys() else True)}
     if not all(checks.values()):
         raise RuntimeError(f"Falló la comprobación final: {checks}")
-    manifest = {"training_config": asdict(config), "hidden_channels": args.hidden_channels,
+    manifest = {"training_config": asdict(config), "models": args.models,
+                "hidden_channels": args.hidden_channels, "gat_heads": args.heads,
                 "dropout": args.dropout, "seeds": args.seeds, "split_seed": args.split_seed,
                 "drop_fractions": args.drop_fractions, "edge_seed_rule": "training_seed + 10000",
                 "selection": "minimum validation cross-entropy; first checkpoint wins ties",
                 "protocols": {"attributes": "MLP entrenada una vez por semilla; ignora el grafo",
-                              "inference": "GCN entrenada con grafo completo; pesos fijos ante eliminación",
-                              "retrain": "GCN reinicializada y entrenada en cada grafo incompleto"},
+                              "inference": "GCN o GAT entrenada con grafo completo; pesos fijos ante eliminación",
+                              "retrain": "GCN o GAT reinicializada y entrenada en cada grafo incompleto"},
+                "gat_design": ("Primera capa: cabezas concatenadas hasta hidden_channels. "
+                               "Segunda capa: una cabeza hacia las clases. ReLU y dropout de "
+                               "características iguales a MLP y GCN; dropout de atención con la "
+                               "misma probabilidad. Los parámetros extra son los vectores de atención."),
                 "edge_removal": "uniform undirected pairs without replacement; nested subsets; floor(fraction * m)",
                 "features": "PyG original, sin transformaciones adicionales",
                 "device": "cpu", "threads": args.threads, "deterministic_algorithms": True,
