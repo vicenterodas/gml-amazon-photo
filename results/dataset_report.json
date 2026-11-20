@@ -2,22 +2,22 @@
   "dataset": "torch_geometric.datasets.Amazon(name='Photo')",
   "seed": 42,
   "environment": {
-    "python": "3.14.7",
-    "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+    "python": "3.10.4",
+    "platform": "Windows-10-10.0.26200-SP0",
     "packages": {
-      "torch": "2.14.1",
-      "torch-geometric": "2.8.1",
-      "numpy": "2.5.4",
-      "pandas": "3.0.6",
-      "scikit-learn": "1.9.1",
-      "matplotlib": "3.11.2",
-      "scipy": "1.18.1"
+      "torch": "2.3.0+cpu",
+      "torch-geometric": "2.6.1",
+      "numpy": "1.26.4",
+      "pandas": "2.3.3",
+      "scikit-learn": "1.4.2",
+      "matplotlib": "3.10.9",
+      "scipy": "1.15.3"
     }
   },
   "provenance": {
     "raw_url": "https://github.com/shchur/gnn-benchmark/raw/master/data/npz/amazon_electronics_photo.npz",
     "raw_sha256": "bdb1feb8e6ff42ee44024b04479145029c563fd42fc31bff80af20887ba0439a",
-    "processed_sha256": "3dc53ddfdde6c1226bf230a4948a770d03652dc7361a24a87905e607bcb66e8a",
+    "processed_sha256": "fdfee8f659a231d8fe3971a95b4fad37dee838e72956e25db6c94ec292cd63b8",
     "tensors_sha256": "22092fea3318175a055e7e3a3c25bdc632dbf184613d31d1931e545a01388621",
     "masks_content_sha256": "03c9075dcc522e1c6e4aeda63d98ef7054f74ebe4f76484f1b949d521343ac49"
   },
